@@ -31,7 +31,7 @@ def compute_seed_from_image(image_path):
     hash_val = sha256(img_bytes).digest()
     return int.from_bytes(hash_val[:4], 'big')
 
-def encode(image_path, file_path, out_path, pub_key):
+def encode(image_path, file_path, out_path, pub_key, scalar):
     seed = compute_seed_from_image(image_path)
     prng = random.Random(seed)
 
@@ -57,7 +57,10 @@ def encode(image_path, file_path, out_path, pub_key):
 
     checksum = sha256(encrypted_data).digest()
 
-    scalar = random.randint(2, 8)
+    if scalar is not None and (scalar < 2 or scalar > 8):
+            print("Invalid scalar value. Must be from 2 to 8")
+    else:
+        scalar = random.randint(2, 8)
 
     # Header content: seed (4 bytes) + scalar (1 byte) + data_len (4 bytes) + symmetric_key (32 bytes for AES-256) + iv (16 bytes) + checksum (32 bytes)
     header_plain = seed.to_bytes(4, 'big') + scalar.to_bytes(1, 'big') + data_len.to_bytes(4, 'big') + symmetric_key + iv + checksum
@@ -209,6 +212,7 @@ def main():
     parser.add_argument('--public-key', help='Path to receiver\'s public key')
     parser.add_argument('--private-key', help='Path to your own private key')
     parser.add_argument('-o', '--output-dir', default='.', help='Output directory for generated key pairs or encrypted/decrypted results')
+    parser.add_argument('-s', '--scalar-value', type=int, default=None, help='Scalar value for the spread. Must be an integer between 2 to 8.')
 
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)
@@ -219,7 +223,7 @@ def main():
     if args.encrypt:
         if not (args.input and args.png and args.public_key):
             parser.error("Encryption requires --input, --png, and --public-key")
-        encode(args.png, args.input, args.output_dir, args.public_key)
+        encode(args.png, args.input, args.output_dir, args.public_key, args.scalar_value)
         print(f"Success! Output saved to {args.output_dir} as 'embed.png'")
 
     elif args.decrypt:
